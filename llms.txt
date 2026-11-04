@@ -1,0 +1,90 @@
+# tiny-mcp-contract
+
+> Zero-dependency MCP tool-contract snapshots and diffs. Catch silent breaking changes between server releases.
+
+Zero runtime dependencies. Requires Python 3.8+.
+
+## The problem
+
+MCP servers change their tool contracts between releases without
+announcing it. A required parameter is added, a tool disappears, a type
+changes, an outputSchema is dropped. Your client keeps sending the old
+shape and fails at runtime.
+
+modelcontextprotocol/servers#5414 measured 140 silent contract changes
+across 66 version pairs of the reference servers, none in the changelogs.
+
+## Install
+
+    pip install git+https://github.com/hussain-alsaibai/tiny-mcp-contract.git
+
+Not on PyPI yet.
+
+## Python API
+
+    from tiny_mcp_contract import (
+        ContractSnapshot, ToolSpec, Change, ChangeKind,
+        diff_snapshots, classify, is_breaking, snapshot_from_client,
+    )
+
+    old = ContractSnapshot.from_json(open("v1.json").read())
+    new = ContractSnapshot.from_json(open("v2.json").read())
+
+    for c in diff_snapshots(old, new):
+        print(c.kind, c.subject, c.detail)
+
+    if is_breaking(diff_snapshots(old, new)):
+        raise SystemExit("contract broke")
+
+    old.digest              # sha256 of the whole contract
+    old.per_tool_digests()  # {"read_file": "a1b2...", ...}
+
+## Change kinds
+
+    BREAKING  an existing caller would now fail      breaks: yes
+    GONE      a tool was removed                     breaks: yes
+    NEW       a tool or optional parameter added     breaks: no
+    RELAXED   the server now accepts strictly more   breaks: no
+    NOTATION  cosmetic: wording, descriptions        breaks: no
+
+The names match the taxonomy in the MCP contract-drift issue, so a diff
+produced here can be compared against theirs directly.
+
+## CLI
+
+    tiny-mcp-contract digest contract.json        print the contract digest
+    tiny-mcp-contract diff old.json new.json      diff two snapshots
+    tiny-mcp-contract check base.json curr.json   exit 1 on a breaking change
+    tiny-mcp-contract gate base.json curr.json    CI gate, exit 1 on breaking
+    tiny-mcp-contract gate --strict base.json curr.json   fail on ANY change
+
+Add --json to any command for machine-readable output.
+
+## The CI gate
+
+    tiny-mcp-contract gate contract/baseline.json contract/current.json
+
+Exits 1 when a breaking change is present, 0 when there is none. A gate
+that always returns zero is worse than no gate, because it teaches people
+to ignore it.
+
+## Guarantees
+
+- Digests are over canonical JSON, so a server that reformats its output
+  does not look like a contract change.
+- The output schema is hashed separately from the input schema: a server
+  that starts declaring one has changed what it promises to return.
+- A version bump alone produces no changes.
+- Classification is conservative: anything that could break a caller is
+  reported as breaking.
+
+## Tests
+
+54 tests, including one that models the real server-filesystem 0.2.0 to
+1.0.0 change from issue #5414. Passes on Python 3.8 through 3.12.
+
+## Links
+
+- Source: https://github.com/hussain-alsaibai/tiny-mcp-contract
+- The issue it answers: https://github.com/modelcontextprotocol/servers/issues/5414
+- License: MIT
