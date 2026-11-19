@@ -1,7 +1,7 @@
 # tiny-mcp-contract
 
 [![CI](https://github.com/hussain-alsaibai/tiny-mcp-contract/actions/workflows/ci.yml/badge.svg)](https://github.com/hussain-alsaibai/tiny-mcp-contract/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Deps](https://img.shields.io/badge/dependencies-0-orange.svg)](pyproject.toml)
 
@@ -204,7 +204,7 @@ changes the version number is not contract drift.
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - No runtime dependencies
 
 ## Part of the tiny-* ecosystem

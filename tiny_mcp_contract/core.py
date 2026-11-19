@@ -487,7 +487,9 @@ def diff_snapshots(old, new):
             change.review = True
             tool_changes.insert(0, change)
         elif description_changed:
-            tool_changes.append(Change(ChangeKind.NOTATION, name, "description changed"))
+            tool_changes.append(
+                Change(ChangeKind.NOTATION, name, "description changed")
+            )
 
         changes.extend(_ordered(tool_changes))
 
