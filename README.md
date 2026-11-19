@@ -1,7 +1,7 @@
 # tiny-mcp-contract
 
 [![CI](https://github.com/hussain-alsaibai/tiny-mcp-contract/actions/workflows/ci.yml/badge.svg)](https://github.com/hussain-alsaibai/tiny-mcp-contract/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Deps](https://img.shields.io/badge/dependencies-0-orange.svg)](pyproject.toml)
 
@@ -75,6 +75,33 @@ The classification is deliberately conservative. Anything that could
 break an existing caller is reported as breaking, because a false
 `BREAKING` costs a human thirty seconds and a missed `BREAKING` costs a
 production incident.
+
+### A description that moves with a parameter is not cosmetic
+
+Security releases state their behaviour change in the description, not the
+schema. `mcp-server-git` v2.5.0 disabled Git's automatic maintenance and
+turned off lazy fetching, and the only place it says so in `tools/list` is
+the tool's description. Diffed against v2.11.11 that release is `0 breaking`
+— correctly, no caller breaks — but shipping it unread is how a merge starts
+leaving unreachable objects behind.
+
+So when a tool's description changes in the same release that also adds,
+removes, or relaxes a parameter, the change is marked `review` and ranked
+first instead of trailing the list as `NOTATION`:
+
+```
+NOTATION  git_merge: description changed alongside a parameter change
+RELAXED   git_merge: parameter(s) branch are no longer required
+NEW       git_merge: optional parameter(s) no_ff added
+
+3 change(s), 0 breaking, 1 to review
+```
+
+`review` stays out of `is_breaking`, so `gate` and `check` exit codes are
+unchanged. `--json` carries `"review": true` on those entries. The real
+snapshots are in
+[`examples/mcp-contracts/`](https://github.com/hussain-alsaibai/openclaw-workspace/tree/main/examples/mcp-contracts)
+in the workspace repo.
 
 The kind names match the taxonomy used in
 [the MCP contract-drift discussion](https://github.com/modelcontextprotocol/servers/issues/5414),
@@ -177,7 +204,7 @@ changes the version number is not contract drift.
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - No runtime dependencies
 
 ## Part of the tiny-* ecosystem

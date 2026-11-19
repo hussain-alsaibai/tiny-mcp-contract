@@ -246,6 +246,40 @@ def test_description_change_is_notation():
     assert not is_breaking(changes)
 
 
+def test_description_change_with_parameter_change_is_reported_first():
+    """A security release states its behaviour change in the description.
+
+    v2.5.0 of mcp-server-git disables automatic maintenance on git_merge and
+    adds an optional no_ff parameter. The parameter change is NEW and the
+    description change is NOTATION, so listing NOTATION last buries the only
+    line that says the fix is in. It must lead the tool's changes instead.
+    """
+    old = snap([tool("t", description="merge a branch")])
+    new = snap(
+        [
+            tool(
+                "t",
+                description="merge a branch, automatic maintenance disabled",
+                schema=obj({"no_ff": {"type": "boolean"}}),
+            )
+        ]
+    )
+    changes = diff_snapshots(old, new)
+    # `kinds()` sorts, so it cannot see ordering. Assert the list itself.
+    assert [c.kind for c in changes] == [ChangeKind.NOTATION, ChangeKind.NEW]
+    assert changes[0].review is True
+    assert "alongside a parameter change" in changes[0].detail
+    assert "review" in changes[0].to_dict()
+    assert not is_breaking(changes)
+
+
+def test_description_change_alone_keeps_old_detail():
+    old = snap([tool("t", description="old text")])
+    new = snap([tool("t", description="new text")])
+    changes = diff_snapshots(old, new)
+    assert [c.detail for c in changes] == ["description changed"]
+
+
 def test_new_output_schema_is_new():
     old = snap([tool("t")])
     new = snap([tool("t", output={"type": "object"})])

@@ -2,7 +2,7 @@
 
 > Zero-dependency MCP tool-contract snapshots and diffs. Catch silent breaking changes between server releases.
 
-Zero runtime dependencies. Requires Python 3.8+.
+Zero runtime dependencies. Requires Python 3.10+.
 
 ## The problem
 
@@ -81,7 +81,7 @@ to ignore it.
 ## Tests
 
 54 tests, including one that models the real server-filesystem 0.2.0 to
-1.0.0 change from issue #5414. Passes on Python 3.8 through 3.12.
+1.0.0 change from issue #5414. Passes on Python 3.10 through 3.13.
 
 ## Links
 
