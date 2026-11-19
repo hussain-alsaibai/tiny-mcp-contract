@@ -46,13 +46,19 @@ def cmd_diff(args):
         print("no contract changes")
         return 0
 
-    grouped = classify(changes)
-    for kind in ChangeKind.ALL:
-        for change in grouped.get(kind, []):
-            print("%-9s %s" % (kind, change))
+    # Print in the order diff_snapshots produced, not grouped by kind: the
+    # list is already ranked, and re-grouping it here put a security
+    # release's description change back below the parameter changes it
+    # explains (mcp-server-git v2.5.0).
+    for change in changes:
+        print("%-9s %s" % (change.kind, change))
     print("")
-    breaking_count = len(grouped.get(ChangeKind.BREAKING, []))
-    print("%d change(s), %d breaking" % (len(changes), breaking_count))
+    breaking_count = len([c for c in changes if c.breaking])
+    review_count = len([c for c in changes if getattr(c, "review", False)])
+    tail = "%d change(s), %d breaking" % (len(changes), breaking_count)
+    if review_count:
+        tail += ", %d to review" % review_count
+    print(tail)
     return 0
 
 

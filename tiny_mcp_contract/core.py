@@ -52,12 +52,16 @@ class ChangeKind:
 class Change:
     """One difference between two contract snapshots."""
 
-    __slots__ = ("kind", "subject", "detail")
+    __slots__ = ("kind", "subject", "detail", "review")
 
-    def __init__(self, kind, subject, detail=""):
+    def __init__(self, kind, subject, detail="", review=False):
         self.kind = kind
         self.subject = subject
         self.detail = detail
+        # True for a change that does not break a caller but must still be
+        # read before shipping: today, a description that moved alongside a
+        # parameter change. Kept out of breaking so gates stay unchanged.
+        self.review = review
 
     @property
     def breaking(self):
@@ -68,7 +72,10 @@ class Change:
         return self.kind in (ChangeKind.BREAKING, ChangeKind.GONE)
 
     def to_dict(self):
-        return {"kind": self.kind, "subject": self.subject, "detail": self.detail}
+        out = {"kind": self.kind, "subject": self.subject, "detail": self.detail}
+        if self.review:
+            out["review"] = True
+        return out
 
     def __repr__(self):
         return "Change(%s, %r)" % (self.kind, self.subject)
@@ -404,6 +411,32 @@ def _classify_schema_change(old_spec, new_spec):
     return changes
 
 
+_RANK = {
+    ChangeKind.BREAKING: 0,
+    ChangeKind.GONE: 1,
+    ChangeKind.RELAXED: 2,
+    ChangeKind.NEW: 3,
+    ChangeKind.NOTATION: 4,
+}
+
+
+def _ordered(changes):
+    """Order one tool's changes most-consequential first.
+
+    BREAKING and GONE lead because they need a decision. NOTATION trails
+    because it usually does not. The exception is a description that moved
+    with a parameter: that is where a security release states its behaviour
+    change, so it is promoted above RELAXED and NEW (see diff_snapshots).
+
+    list.sort is stable, so changes of equal rank keep the order
+    _classify_schema_change produced.
+    """
+    return sorted(
+        changes,
+        key=lambda c: (0 if c.review else 1, _RANK.get(c.kind, len(_RANK))),
+    )
+
+
 def diff_snapshots(old, new):
     """Diff two contract snapshots into a classified list of changes.
 
@@ -435,13 +468,28 @@ def diff_snapshots(old, new):
         old_spec = old.tools[name]
         new_spec = new.tools[name]
 
-        for kind, detail in _classify_schema_change(old_spec, new_spec):
-            changes.append(Change(kind, name, detail))
+        spec_changes = _classify_schema_change(old_spec, new_spec)
+        description_changed = old_spec.description != new_spec.description
+        tool_changes = [Change(kind, name, detail) for kind, detail in spec_changes]
 
-        if old_spec.description != new_spec.description:
-            changes.append(
-                Change(ChangeKind.NOTATION, name, "description changed")
+        if description_changed and spec_changes:
+            # A description is the only place a security release can state a
+            # behavioural change: "maintenance is now disabled", "lazy
+            # fetching is off". When the same release also reshapes the
+            # parameters, the wording is the changelog, not cosmetic, so it
+            # is promoted instead of trailing the list as NOTATION.
+            # v2.5.0 of mcp-server-git is the case this rule was written for.
+            change = Change(
+                ChangeKind.NOTATION,
+                name,
+                "description changed alongside a parameter change",
             )
+            change.review = True
+            tool_changes.insert(0, change)
+        elif description_changed:
+            tool_changes.append(Change(ChangeKind.NOTATION, name, "description changed"))
+
+        changes.extend(_ordered(tool_changes))
 
         old_out = old_spec.output_digest
         new_out = new_spec.output_digest
